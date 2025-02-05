@@ -16,7 +16,7 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
   const [recordedVideo, setRecordedVideo] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
-  const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
@@ -25,8 +25,8 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       streamRef.current = stream;
 
-      if (videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
 
       const mediaRecorder = new MediaRecorder(stream);
@@ -42,12 +42,19 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
       mediaRecorder.onstop = () => {
         const videoBlob = new Blob(videoChunksRef.current, { type: 'video/webm' });
         const videoUrl = URL.createObjectURL(videoBlob);
-        setRecordedVideo(videoUrl);
 
         // Stop the live stream
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
         }
+
+        // Clear the srcObject and set the video source to the recorded video
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+          videoRef.current.src = videoUrl;
+          videoRef.current.play();
+        }
+        setRecordedVideo(videoUrl);
       };
 
       mediaRecorder.start();
@@ -91,6 +98,14 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
     }
   };
 
+  const resetRecording = () => {
+    setRecordedVideo(null);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.src = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -100,21 +115,14 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
       </Card>
 
       <div className="space-y-4">
-        {recordedVideo ? (
-          <video
-            src={recordedVideo}
-            controls
-            className="w-full aspect-video rounded-lg"
-          />
-        ) : (
-          <video
-            ref={videoPreviewRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full aspect-video rounded-lg bg-muted"
-          />
-        )}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={!recordedVideo}
+          controls={!!recordedVideo}
+          className="w-full aspect-video rounded-lg bg-muted"
+        />
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack}>
@@ -135,12 +143,7 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
 
           {recordedVideo && (
             <>
-              <Button variant="outline" onClick={() => {
-                setRecordedVideo(null);
-                if (videoPreviewRef.current) {
-                  videoPreviewRef.current.srcObject = null;
-                }
-              }}>
+              <Button variant="outline" onClick={resetRecording}>
                 Record Again
               </Button>
               <Button onClick={handleSubmit}>
