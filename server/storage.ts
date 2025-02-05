@@ -1,4 +1,6 @@
 import { users, pledges, type User, type InsertUser, type Pledge, type InsertPledge } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -11,21 +13,50 @@ export interface IStorage {
   getPledgeByCode(code: string): Promise<Pledge | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private pledges: Map<number, Pledge>;
-  private currentUserId: number;
-  private currentPledgeId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.pledges = new Map();
-    this.currentUserId = 1;
-    this.currentPledgeId = 1;
-    this.initializeData();
+export class DatabaseStorage implements IStorage {
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
   }
 
-  private initializeData() {
+  async getUsersByGrade(grade: string): Promise<User[]> {
+    return await db.select()
+      .from(users)
+      .where(eq(users.grade, grade));
+  }
+
+  async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
+    return await db.select()
+      .from(users)
+      .where(eq(users.grade, grade))
+      .where(eq(users.videoSubmitted, false));
+  }
+
+  async updateUserVideoStatus(id: number): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ videoSubmitted: true })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error("User not found");
+    }
+
+    return updatedUser;
+  }
+
+  async getPledges(): Promise<Pledge[]> {
+    return await db.select().from(pledges);
+  }
+
+  async getPledgeByCode(code: string): Promise<Pledge | undefined> {
+    const [pledge] = await db.select()
+      .from(pledges)
+      .where(eq(pledges.pledgeCode, code));
+    return pledge;
+  }
+
+  // Initialize database with sample data
+  async initializeData() {
     // Initialize pledges
     const pledgeTexts = [
       "I pledge to be a responsible digital citizen and treat others with respect online.",
@@ -34,14 +65,13 @@ export class MemStorage implements IStorage {
       "I pledge to protect my privacy and respect the privacy of others online."
     ];
 
-    pledgeTexts.forEach((text, idx) => {
-      const pledge: Pledge = {
-        id: this.currentPledgeId++,
-        pledgeCode: `P${idx + 1}`,
-        pledgeText: text
-      };
-      this.pledges.set(pledge.id, pledge);
-    });
+    // Insert pledges
+    for (let i = 0; i < pledgeTexts.length; i++) {
+      await db.insert(pledges).values({
+        pledgeCode: `P${i + 1}`,
+        pledgeText: pledgeTexts[i]
+      });
+    }
 
     // Initialize 50 users
     const grades = ["7th", "8th"];
@@ -58,51 +88,17 @@ export class MemStorage implements IStorage {
       "John Richardson", "Madison Cox", "Owen Howard", "Layla Ward", "Gabriel Torres"
     ];
 
-    names.forEach((name, idx) => {
-      const user: User = {
-        id: this.currentUserId++,
-        name,
-        grade: grades[idx % 2],
-        pledgeCode: `P${(idx % 4) + 1}`,
+    // Insert users
+    for (let i = 0; i < names.length; i++) {
+      await db.insert(users).values({
+        name: names[i],
+        grade: grades[i % 2],
+        pledgeCode: `P${(i % 4) + 1}`,
         favoriteCelebrity: "",
         videoSubmitted: false
-      };
-      this.users.set(user.id, user);
-    });
-  }
-
-  async getUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
-  }
-
-  async getUsersByGrade(grade: string): Promise<User[]> {
-    return Array.from(this.users.values()).filter(user => user.grade === grade);
-  }
-
-  async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
-    return Array.from(this.users.values()).filter(
-      user => user.grade === grade && !user.videoSubmitted
-    );
-  }
-
-  async updateUserVideoStatus(id: number): Promise<User> {
-    const user = this.users.get(id);
-    if (!user) throw new Error("User not found");
-    
-    const updatedUser = { ...user, videoSubmitted: true };
-    this.users.set(id, updatedUser);
-    return updatedUser;
-  }
-
-  async getPledges(): Promise<Pledge[]> {
-    return Array.from(this.pledges.values());
-  }
-
-  async getPledgeByCode(code: string): Promise<Pledge | undefined> {
-    return Array.from(this.pledges.values()).find(
-      pledge => pledge.pledgeCode === code
-    );
+      });
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
