@@ -1,0 +1,36 @@
+I want to build a full-stack web application that allows users to provide the name of their favorite celebrity, and record themselves taking a pledge. This application will consist of a front-end interface, and a back-end service to load the pledge mapped to the user in the backend database, and store the video recording. The primary functionality should include:
+
+Front-End:
+A modal pop-up or overlay that is displayed when users click a “Take The Pledge” button.
+A form for users to select their grade in school (7th or 8th), their name, enter the name of their favorite celebrity, and load the pledge mapped to their name in the backend. The dropdown should only load those names from the backend into the dropdown if the video_submitted field is marked as “False” and belonging to the selected grade in school. There are 50 users whose names needs to be entered to the backend and mapped to 4 different pledges.
+The ability for users to see the pledge dynamically displayed.
+The displayed pledge should be personalized to include the user's name in the pledge. It should also include the text, “I nominate <favorite celebrity> to take the pledge.
+Built-in recording controls to let users record themselves reading the pledge. The pledge text should remain visible while recording. The pledge text should be positioned such that while users read it off the screen, they would be looking as close to the camera as possible.
+The users should be able to play the recording to see if they like their recording. If not, they should be able to re-record the video. The audio of the recording should also be audible during the video preview.
+A submission button that triggers the message, “Your video has been saved”. The video should be saved in the backend with a custom name that would be like in the following format <name_grade_favoritecelebrity>.
+
+Back-End:
+A database table that lists 50 different users with details of their names, grades, pledge_code, favorite_celebrity, and video_submitted field. The <video_submitted> field is marked as “False” by default.
+The pledge_code field is the primary_key of the pledge_details table which has the 4 pledge texts.
+Once a video is successfully submitted by a student, the field <video_submitted> should be marked as “True”.
+ Provision for an endpoint that triggers a no-code automation platform (via webhook) to initiate entry to a google sheet with details such as the name, video_url, and favorite_celebrity. This will be implemented as a second step.
+
+No-Code Automation (Make.com):
+A workflow that receives data (name, video URL, and favorite celebrity) from the back-end.
+Makes a new entry to the google sheet.
+Ensure proper error handling and validation if data entry to the google sheet fails.
+
+Overall Application Flow:
+User clicks “Take The Pledge” and fills out the form in a modal.
+User records their pledge while seeing the pledge text while recording.
+The users gets to preview the recording and record in case they want to modify the video
+The back-end saves the video, makes the database entry to edit the users video_submitted field and triggers the no-code platform.
+
+Additional Considerations:
+Design the front-end to be responsive and user-friendly, with intuitive recording controls and clear visual cues.
+Implement robust back-end validation to ensure the form fields are correctly formatted and that the video is successfully saved.
+Ensure the entire workflow is secure, handles errors gracefully, and provides user feedback (e.g., confirmations, error messages) at each step.
+
+Deliverables:
+A front-end interface that handles user input, displays the pledge text, and enables video recording.
+A back-end service that securely saves videos, generates unique filenames, and triggers the no-code automation.
