@@ -16,11 +16,19 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
   const [recordedVideo, setRecordedVideo] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
+  const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = stream;
+      }
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       videoChunksRef.current = [];
@@ -35,6 +43,11 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
         const videoBlob = new Blob(videoChunksRef.current, { type: 'video/webm' });
         const videoUrl = URL.createObjectURL(videoBlob);
         setRecordedVideo(videoUrl);
+
+        // Stop the live stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
       };
 
       mediaRecorder.start();
@@ -51,7 +64,6 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
     }
   };
@@ -92,38 +104,43 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
           <video
             src={recordedVideo}
             controls
-            className="w-full rounded-lg"
+            className="w-full aspect-video rounded-lg"
           />
         ) : (
-          <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-            {isRecording ? (
-              <div className="text-destructive animate-pulse">Recording...</div>
-            ) : (
-              <div className="text-muted-foreground">Ready to record</div>
-            )}
-          </div>
+          <video
+            ref={videoPreviewRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full aspect-video rounded-lg bg-muted"
+          />
         )}
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack}>
             Back
           </Button>
-          
+
           {!recordedVideo && !isRecording && (
             <Button onClick={startRecording}>
               Start Recording
             </Button>
           )}
-          
+
           {isRecording && (
             <Button variant="destructive" onClick={stopRecording}>
               Stop Recording
             </Button>
           )}
-          
+
           {recordedVideo && (
             <>
-              <Button variant="outline" onClick={() => setRecordedVideo(null)}>
+              <Button variant="outline" onClick={() => {
+                setRecordedVideo(null);
+                if (videoPreviewRef.current) {
+                  videoPreviewRef.current.srcObject = null;
+                }
+              }}>
                 Record Again
               </Button>
               <Button onClick={handleSubmit}>
