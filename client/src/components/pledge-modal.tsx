@@ -24,7 +24,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [step, setStep] = useState(1);
   const { toast } = useToast();
-  
+
   const form = useForm<FormData>({
     defaultValues: {
       grade: "",
@@ -34,15 +34,15 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["users", form.watch("grade")],
-    queryFn: () => 
+    queryKey: ["/api/users/grade", form.watch("grade")],
+    queryFn: () =>
       fetch(`/api/users/grade/${form.watch("grade")}`).then(res => res.json()),
     enabled: !!form.watch("grade")
   });
 
   const { data: pledge } = useQuery({
     queryKey: ["pledge", selectedUser?.pledgeCode],
-    queryFn: () => 
+    queryFn: () =>
       fetch(`/api/pledges/${selectedUser?.pledgeCode}`).then(res => res.json()),
     enabled: !!selectedUser
   });
@@ -78,8 +78,8 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="7th">7th Grade</SelectItem>
-                        <SelectItem value="8th">8th Grade</SelectItem>
+                        <SelectItem value="8">8th Grade</SelectItem>
+                        <SelectItem value="7">7th Grade</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>

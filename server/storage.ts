@@ -28,7 +28,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select()
       .from(users)
       .where(eq(users.grade, grade))
-      .where(eq(users.videoSubmitted, false));
+      .where(eq(users.videoSubmitted, false))
+      .orderBy(users.name);
   }
 
   async updateUserVideoStatus(id: number): Promise<User> {
