@@ -1,18 +1,6 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
@@ -41,26 +29,22 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     defaultValues: {
       grade: "",
       name: "",
-      celebrity: "",
-    },
+      celebrity: ""
+    }
   });
 
   const { data: users = [] } = useQuery({
     queryKey: ["/api/users/grade", form.watch("grade")],
     queryFn: () =>
-      fetch(`/api/users/grade/${form.watch("grade")}`).then((res) =>
-        res.json(),
-      ),
-    enabled: !!form.watch("grade"),
+      fetch(`/api/users/grade/${form.watch("grade")}`).then(res => res.json()),
+    enabled: !!form.watch("grade")
   });
 
   const { data: pledge } = useQuery({
     queryKey: ["pledge", selectedUser?.pledgeCode],
     queryFn: () =>
-      fetch(`/api/pledges/${selectedUser?.pledgeCode}`).then((res) =>
-        res.json(),
-      ),
-    enabled: !!selectedUser,
+      fetch(`/api/pledges/${selectedUser?.pledgeCode}`).then(res => res.json()),
+    enabled: !!selectedUser
   });
 
   const onSubmit = (data: FormData) => {
@@ -71,7 +55,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     }
   };
 
-  const personalizedPledgeText = 'I, ', ${selectedUser?.name}, pledge?.pledgeText
+  const personalizedPledgeText = pledge?.pledgeText
     ? `${pledge.pledgeText}\n\nI, ${selectedUser?.name}, nominate ${selectedUser?.favoriteCelebrity} to take the pledge.`
     : "";
 
@@ -94,8 +78,8 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="8th">8th Grade</SelectItem>
-                        <SelectItem value="7th">7th Grade</SelectItem>
+                        <SelectItem value="8">8th Grade</SelectItem>
+                        <SelectItem value="7">7th Grade</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
@@ -139,9 +123,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 )}
               />
 
-              <Button type="submit" className="w-full">
-                Continue
-              </Button>
+              <Button type="submit" className="w-full">Continue</Button>
             </form>
           </Form>
         ) : (
