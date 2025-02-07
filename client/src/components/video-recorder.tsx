@@ -77,15 +77,26 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
   const handleSubmit = async () => {
     if (!recordedVideo) return;
 
-    const videoBlob = await fetch(recordedVideo).then(r => r.blob());
-    const formData = new FormData();
-    formData.append('video', videoBlob);
-    formData.append('name', userData.name);
-    formData.append('grade', userData.grade);
-    formData.append('celebrity', userData.favoriteCelebrity);
-    formData.append('userId', userData.id.toString());
+    console.log("Starting video upload with user data:", userData);
 
     try {
+      const videoBlob = await fetch(recordedVideo).then(r => r.blob());
+      console.log("Video blob created:", videoBlob);
+
+      const formData = new FormData();
+      formData.append('video', videoBlob, 'recording.webm');
+      formData.append('name', userData.name);
+      formData.append('grade', userData.grade);
+      formData.append('celebrity', userData.favoriteCelebrity);
+      formData.append('userId', userData.id.toString());
+
+      console.log("FormData created with fields:", {
+        name: userData.name,
+        grade: userData.grade,
+        celebrity: userData.favoriteCelebrity,
+        userId: userData.id
+      });
+
       const response = await fetch('/api/videos', {
         method: 'POST',
         body: formData,
@@ -95,8 +106,12 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
         throw new Error('Failed to upload video');
       }
 
+      const result = await response.json();
+      console.log("Upload successful:", result);
+
       onComplete();
     } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Error",
         description: "Failed to upload video",
