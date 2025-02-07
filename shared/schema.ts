@@ -15,7 +15,6 @@ export const users = pgTable("users", {
   pledgeCode: text("pledge_code").notNull(),
   favoriteCelebrity: text("favorite_celebrity"),
   videoSubmitted: boolean("video_submitted").default(false),
-  videoLink: text("video_link"),
 });
 
 export const insertPledgeSchema = createInsertSchema(pledges);

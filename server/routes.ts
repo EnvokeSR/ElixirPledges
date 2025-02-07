@@ -9,10 +9,8 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: "./uploads",
     filename: (req, file, cb) => {
-      const timestamp = new Date().toISOString().replace(/[:\.]/g, '-');
-      const { userId } = req.body;
-      const fileName = `video_${userId}_${timestamp}${path.extname(file.originalname)}`;
-      cb(null, fileName);
+      const { name, grade, celebrity } = req.body;
+      cb(null, `${name}_${grade}_${celebrity}${path.extname(file.originalname)}`);
     },
   }),
 });
@@ -35,9 +33,8 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/videos", upload.single("video"), async (req, res) => {
     try {
       const { userId, favoriteCelebrity } = req.body;
-      const videoLink = `/uploads/${req.file?.filename}`;
-      await storage.updateUserVideoStatus(parseInt(userId), favoriteCelebrity, videoLink);
-      res.json({ message: "Video uploaded successfully", videoLink });
+      await storage.updateUserVideoStatus(parseInt(userId), favoriteCelebrity);
+      res.json({ message: "Video uploaded successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to upload video" });
     }
