@@ -45,9 +45,10 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "No video file uploaded" });
       }
 
-      const { userId, favoriteCelebrity } = req.body;
+      const { userId, celebrity } = req.body;
 
-      await storage.updateUserVideoStatus(parseInt(userId), favoriteCelebrity);
+      // Update user's video submission status and favorite celebrity
+      await storage.updateUserVideoStatus(parseInt(userId), celebrity);
 
       res.json({ 
         message: "Video uploaded successfully",

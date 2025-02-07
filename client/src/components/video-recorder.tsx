@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 interface VideoRecorderProps {
   pledgeText: string;
@@ -80,15 +79,22 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
 
     const videoBlob = await fetch(recordedVideo).then(r => r.blob());
     const formData = new FormData();
-    formData.append('video', videoBlob, `${userData.name}_${userData.grade}_${userData.favoriteCelebrity}.webm`);
+    formData.append('video', videoBlob);
+    formData.append('name', userData.name);
+    formData.append('grade', userData.grade);
+    formData.append('celebrity', userData.favoriteCelebrity);
     formData.append('userId', userData.id.toString());
-    formData.append('favoriteCelebrity', userData.favoriteCelebrity);
 
     try {
-      await fetch('/api/videos', {
+      const response = await fetch('/api/videos', {
         method: 'POST',
         body: formData,
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload video');
+      }
+
       onComplete();
     } catch (error) {
       toast({
