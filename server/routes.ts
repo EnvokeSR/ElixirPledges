@@ -7,16 +7,25 @@ import fs from "fs/promises";
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: "./uploads",
+    destination: async (req, file, cb) => {
+      await fs.mkdir("./uploads", { recursive: true });
+      cb(null, "./uploads");
+    },
     filename: (req, file, cb) => {
       const { name, grade, celebrity } = req.body;
-      cb(null, `${name}_${grade}_${celebrity}${path.extname(file.originalname)}`);
+      // Sanitize the filename components
+      const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+      cb(null, `${sanitizedName}_${grade}_${sanitizedCelebrity}_${timestamp}${path.extname(file.originalname)}`);
     },
   }),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  }
 });
 
-// Ensure uploads directory exists
-await fs.mkdir("./uploads", { recursive: true });
 
 export function registerRoutes(app: Express): Server {
   app.get("/api/users/grade/:grade", async (req, res) => {
@@ -32,10 +41,20 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/videos", upload.single("video"), async (req, res) => {
     try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No video file uploaded" });
+      }
+
       const { userId, favoriteCelebrity } = req.body;
+
       await storage.updateUserVideoStatus(parseInt(userId), favoriteCelebrity);
-      res.json({ message: "Video uploaded successfully" });
+
+      res.json({ 
+        message: "Video uploaded successfully",
+        filename: req.file.filename
+      });
     } catch (error) {
+      console.error("Video upload error:", error);
       res.status(500).json({ message: "Failed to upload video" });
     }
   });
