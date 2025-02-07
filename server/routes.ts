@@ -1,36 +1,36 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 
+// Create uploads directory if it doesn't exist
+fs.mkdir("./uploads", { recursive: true }).catch(error => {console.error("Error creating upload directory:", error)});
+
 const upload = multer({
   storage: multer.diskStorage({
-    destination: async (req, file, cb) => {
-      try {
-        await fs.mkdir("./uploads", { recursive: true });
-        console.log("Upload directory created/verified at ./uploads");
-        cb(null, "./uploads");
-      } catch (error) {
-        console.error("Error creating upload directory:", error);
-        cb(error as Error, "./uploads");
-      }
-    },
+    destination: "./uploads",
     filename: (req, file, cb) => {
-      console.log("File upload request body:", req.body);
-      console.log("Incoming file:", file);
+      try {
+        // Get the fields from the FormData
+        const name = req.body.name || 'unnamed';
+        const grade = req.body.grade || 'nograde';
+        const celebrity = req.body.celebrity || 'nocelebrity';
 
-      const { name, grade, celebrity } = req.body;
-      // Sanitize the filename components
-      const sanitizedName = name?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'unnamed';
-      const sanitizedGrade = grade || 'nograde';
-      const sanitizedCelebrity = celebrity?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'nocelebrity';
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        // Sanitize the filename components
+        const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const sanitizedGrade = grade.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-      const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}_${timestamp}${path.extname(file.originalname)}`;
-      console.log("Generated filename:", filename);
-      cb(null, filename);
+        const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}_${timestamp}${path.extname(file.originalname)}`;
+        console.log("Generated filename:", filename);
+        cb(null, filename);
+      } catch (error) {
+        console.error("Error generating filename:", error);
+        cb(error as Error, '');
+      }
     },
   }),
   limits: {
@@ -39,6 +39,9 @@ const upload = multer({
 });
 
 export function registerRoutes(app: Express): Server {
+  // Parse URL-encoded bodies (as sent by HTML forms)
+  app.use(express.urlencoded({ extended: true }));
+
   app.get("/api/users/grade/:grade", async (req, res) => {
     const users = await storage.getUsersByGradeNotSubmitted(req.params.grade);
     res.json(users);
