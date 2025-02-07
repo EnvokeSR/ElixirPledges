@@ -1,6 +1,6 @@
 import { users, pledges, type User, type InsertUser, type Pledge, type InsertPledge } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -27,7 +27,7 @@ export class DatabaseStorage implements IStorage {
   async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
     return await db.select()
       .from(users)
-      .where(eq(users.grade, grade))
+      .where(sql`LOWER(${users.grade}) = LOWER(${grade})`)
       .where(eq(users.videoSubmitted, false))
       .orderBy(users.name);
   }
