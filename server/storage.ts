@@ -32,9 +32,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(users.name);
   }
 
-  async updateUserVideoStatus(id: number): Promise<User> {
+  async updateUserVideoStatus(id: number, favoriteCelebrity: string): Promise<User> {
     const [updatedUser] = await db.update(users)
-      .set({ videoSubmitted: true })
+      .set({ 
+        videoSubmitted: true,
+        favoriteCelebrity: favoriteCelebrity 
+      })
       .where(eq(users.id, id))
       .returning();
 

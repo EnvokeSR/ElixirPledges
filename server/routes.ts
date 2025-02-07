@@ -32,8 +32,8 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/videos", upload.single("video"), async (req, res) => {
     try {
-      const { userId } = req.body;
-      await storage.updateUserVideoStatus(parseInt(userId));
+      const { userId, favoriteCelebrity } = req.body;
+      await storage.updateUserVideoStatus(parseInt(userId), favoriteCelebrity);
       res.json({ message: "Video uploaded successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to upload video" });

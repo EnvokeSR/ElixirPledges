@@ -82,6 +82,7 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
     const formData = new FormData();
     formData.append('video', videoBlob, `${userData.name}_${userData.grade}_${userData.favoriteCelebrity}.webm`);
     formData.append('userId', userData.id.toString());
+    formData.append('favoriteCelebrity', userData.favoriteCelebrity);
 
     try {
       await fetch('/api/videos', {
