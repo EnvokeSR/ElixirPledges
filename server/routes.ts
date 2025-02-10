@@ -68,8 +68,9 @@ export function registerRoutes(app: Express): Server {
       const { userId, celebrity } = req.body;
       console.log("Updating user status", { userId, celebrity });
 
-      // Update user's video submission status and favorite celebrity
-      await storage.updateUserVideoStatus(parseInt(userId), celebrity);
+      const videoUrl = `/uploads/${req.file.filename}`;
+      // Update user's video submission status, favorite celebrity and URL
+      await storage.updateUserVideoStatus(parseInt(userId), celebrity, videoUrl);
 
       res.json({ 
         message: "Video uploaded successfully",
