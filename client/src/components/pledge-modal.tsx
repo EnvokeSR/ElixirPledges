@@ -94,8 +94,8 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="8th">8th Grade</SelectItem>
-                        <SelectItem value="7th">7th Grade</SelectItem>
+                        <SelectItem value="8th">8th</SelectItem>
+                        <SelectItem value="7th">7th</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormItem>
