@@ -62,8 +62,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     enabled: !!selectedUser,
   });
 
-  const onSubmit = (data: FormData) => {
-    const user = users.find((u: any) => u.name === data.name);
+  const onSubmit = async (data: FormData) => {
+    const response = await fetch(`/api/users/grade/${selectedGrade}`);
+    const gradeUsers = await response.json();
+    const user = gradeUsers.find((u: any) => u.name === data.name);
     if (user) {
       setSelectedUser({ ...user, favoriteCelebrity: data.celebrity });
       setStep(2);
