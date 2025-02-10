@@ -27,7 +27,7 @@ export class DatabaseStorage implements IStorage {
   async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
     return await db.select()
       .from(users)
-      .where(sql`LOWER(${users.grade}) = LOWER(${grade})`)
+      .where(eq(users.grade, grade))
       .where(eq(users.videoSubmitted, false))
       .orderBy(users.name);
   }
