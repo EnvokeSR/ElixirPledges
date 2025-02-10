@@ -46,26 +46,28 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["/api/users/grade", selectedGrade], // Use selectedGrade instead of form.watch
-    queryFn: () =>
-      fetch(`/api/users/grade/${selectedGrade}`).then((res) => res.json()),
-    enabled: !!selectedGrade, // Enabled only when selectedGrade is set
+  const { data: users = [], refetch: refetchUsers } = useQuery({
+    queryKey: ["users", selectedGrade],
+    queryFn: async () => {
+      if (!selectedGrade) return [];
+      const response = await fetch(`/api/users/grade/${selectedGrade}`);
+      return response.json();
+    },
+    enabled: !!selectedGrade,
   });
 
   const { data: pledge } = useQuery({
     queryKey: ["pledge", selectedUser?.pledgeCode],
-    queryFn: () =>
-      fetch(`/api/pledges/${selectedUser?.pledgeCode}`).then((res) =>
-        res.json(),
-      ),
-    enabled: !!selectedUser,
+    queryFn: async () => {
+      if (!selectedUser?.pledgeCode) return null;
+      const response = await fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+      return response.json();
+    },
+    enabled: !!selectedUser?.pledgeCode,
   });
 
-  const onSubmit = async (data: FormData) => {
-    const response = await fetch(`/api/users/grade/${selectedGrade}`);
-    const gradeUsers = await response.json();
-    const user = gradeUsers.find((u: any) => u.name === data.name);
+  const onSubmit = (data: FormData) => {
+    const user = users.find((u: any) => u.name === data.name);
     if (user) {
       setSelectedUser({ ...user, favoriteCelebrity: data.celebrity });
       setStep(2);
@@ -123,7 +125,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                       </FormControl>
                       <SelectContent>
                         {users.map((user: any) => (
-                          <SelectItem key={user.id} value={user.name}>
+                          <SelectItem key={`user-${user.id}`} value={user.name}>
                             {user.name}
                           </SelectItem>
                         ))}
