@@ -35,6 +35,7 @@ interface FormData {
 export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [step, setStep] = useState(1);
+  const [selectedGrade, setSelectedGrade] = useState(""); // Added state for selected grade
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -46,12 +47,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["/api/users/grade", form.watch("grade")],
+    queryKey: ["/api/users/grade", selectedGrade], // Use selectedGrade instead of form.watch
     queryFn: () =>
-      fetch(`/api/users/grade/${form.watch("grade")}`).then((res) =>
-        res.json(),
-      ),
-    enabled: !!form.watch("grade"),
+      fetch(`/api/users/grade/${selectedGrade}`).then((res) => res.json()),
+    enabled: !!selectedGrade, // Enabled only when selectedGrade is set
   });
 
   const { data: pledge } = useQuery({
@@ -87,7 +86,13 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Grade</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedGrade(value);
+                      }}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select your grade" />
