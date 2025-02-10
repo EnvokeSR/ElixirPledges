@@ -46,14 +46,17 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  const { data: users = [], refetch: refetchUsers } = useQuery({
+  const { data: users = [] } = useQuery({
     queryKey: ["users", selectedGrade],
     queryFn: async () => {
       if (!selectedGrade) return [];
       const response = await fetch(`/api/users/grade/${selectedGrade}`);
-      return response.json();
+      const data = await response.json();
+      return data.filter((user: any) => !user.videoSubmitted);
     },
     enabled: !!selectedGrade,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   const { data: pledge } = useQuery({
