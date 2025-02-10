@@ -84,11 +84,13 @@ export default function VideoRecorder({ pledgeText, onBack, onComplete, userData
       console.log("Video blob created:", videoBlob);
 
       const formData = new FormData();
-      formData.append('video', videoBlob, 'recording.webm');
+      // Append form fields first before the file
       formData.append('name', userData.name);
       formData.append('grade', userData.grade);
       formData.append('celebrity', userData.favoriteCelebrity);
       formData.append('userId', userData.id.toString());
+      // Append video file last
+      formData.append('video', videoBlob, `${userData.name}_${userData.grade}_${userData.favoriteCelebrity}.webm`);
 
       console.log("FormData created with fields:", {
         name: userData.name,
