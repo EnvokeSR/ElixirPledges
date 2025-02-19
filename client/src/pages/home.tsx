@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import PledgeModal from "@/components/pledge-modal";
+import Sponsor1 from "@/assets/sponsor1.jpg";
+import Sponsor2 from "@/assets/sponsor2.png";
+import Sponsor3 from "@/assets/sponsor3.png";
+import Sponsor4 from "@/assets/sponsor4.png";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,8 +16,8 @@ export default function Home() {
           Take The Pledge
         </h1>
         <p className="text-lg text-muted-foreground animate-fade-in">
-          Join your fellow students in making a commitment to digital citizenship
-          and online responsibility.
+          Join your fellow students in making a commitment to social
+          responsibility.
         </p>
         <Button
           size="lg"
@@ -25,20 +29,38 @@ export default function Home() {
       </div>
 
       <div className="mt-12 w-full max-w-4xl">
-        <h2 className="text-2xl font-semibold text-center mb-8 animate-fade-in">Our Sponsors</h2>
+        <h2 className="text-2xl font-semibold text-center mb-8 animate-fade-in">
+          Our Partners
+        </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center">
           {/* Replace these with actual sponsor logos */}
           <div className="w-32 h-32 bg-white rounded-lg shadow-lg flex items-center justify-center animate-fade-in p-4">
-            <span className="text-xl font-bold">Sponsor 1</span>
+            <img
+              src={Sponsor1}
+              alt="EnvokeSR"
+              className="max-w-full max-h-full object-contain"
+            />
           </div>
           <div className="w-32 h-32 bg-white rounded-lg shadow-lg flex items-center justify-center animate-fade-in p-4">
-            <span className="text-xl font-bold">Sponsor 2</span>
+            <img
+              src={Sponsor3}
+              alt="NexusConsulting"
+              className="max-w-full max-h-full object-contain"
+            />
           </div>
           <div className="w-32 h-32 bg-white rounded-lg shadow-lg flex items-center justify-center animate-fade-in p-4">
-            <span className="text-xl font-bold">Sponsor 3</span>
+            <img
+              src={Sponsor2}
+              alt="SecondChanceSanctuary"
+              className="max-w-full max-h-full object-contain"
+            />
           </div>
           <div className="w-32 h-32 bg-white rounded-lg shadow-lg flex items-center justify-center animate-fade-in p-4">
-            <span className="text-xl font-bold">Sponsor 4</span>
+            <img
+              src={Sponsor4}
+              alt="Elixir International"
+              className="max-w-full max-h-full object-contain"
+            />
           </div>
         </div>
       </div>

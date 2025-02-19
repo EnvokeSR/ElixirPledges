@@ -46,7 +46,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [], refetch: refetchUsers } = useQuery({
     queryKey: ["users", selectedGrade],
     queryFn: async () => {
       if (!selectedGrade) return [];
@@ -54,9 +54,9 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
       const data = await response.json();
       return data.filter((user: any) => !user.videoSubmitted);
     },
-    enabled: !!selectedGrade,
+    enabled: false,
     staleTime: 0,
-    cacheTime: 0
+    cacheTime: 0,
   });
 
   const { data: pledge } = useQuery({
@@ -97,6 +97,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedGrade(value);
+                        refetchUsers();
                       }}
                       value={field.value}
                     >
