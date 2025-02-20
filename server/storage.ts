@@ -1,14 +1,12 @@
 import { users, pledges, type User, type InsertUser, type Pledge, type InsertPledge } from "@shared/schema";
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
   getUsers(): Promise<User[]>;
   getUsersByGrade(grade: string): Promise<User[]>;
   getUsersByGradeNotSubmitted(grade: string): Promise<User[]>;
   updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User>;
-  // Pledges
   getPledges(): Promise<Pledge[]>;
   getPledgeByCode(code: string): Promise<Pledge | undefined>;
 }
@@ -26,31 +24,46 @@ export class DatabaseStorage implements IStorage {
 
   async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
     console.log(`Fetching users for grade ${grade} with videoSubmitted=false`);
-    const result = await db.select()
-      .from(users)
-      .where(eq(users.grade, grade))
-      .where(eq(users.videoSubmitted, false))
-      .orderBy(users.name);
+    try {
+      const result = await db.select()
+        .from(users)
+        .where(
+          and(
+            eq(users.grade, grade),
+            eq(users.videoSubmitted, false)
+          )
+        )
+        .orderBy(users.name);
 
-    console.log(`Found ${result.length} users for grade ${grade} without submitted videos`);
-    return result;
+      console.log(`Found ${result.length} users for grade ${grade} without submitted videos`);
+      return result;
+    } catch (error) {
+      console.error("Error fetching users by grade:", error);
+      throw error;
+    }
   }
 
   async updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User> {
-    const [updatedUser] = await db.update(users)
-      .set({ 
-        videoSubmitted: true,
-        favoriteCelebrity: favoriteCelebrity,
-        url: url
-      })
-      .where(eq(users.id, id))
-      .returning();
+    console.log(`Updating user ${id} with celebrity ${favoriteCelebrity} and URL ${url}`);
+    try {
+      const [updatedUser] = await db.update(users)
+        .set({ 
+          videoSubmitted: true,
+          favoriteCelebrity: favoriteCelebrity,
+          url: url
+        })
+        .where(eq(users.id, id))
+        .returning();
 
-    if (!updatedUser) {
-      throw new Error("User not found");
+      if (!updatedUser) {
+        throw new Error("User not found");
+      }
+
+      return updatedUser;
+    } catch (error) {
+      console.error("Error updating user video status:", error);
+      throw error;
     }
-
-    return updatedUser;
   }
 
   async getPledges(): Promise<Pledge[]> {
@@ -64,7 +77,6 @@ export class DatabaseStorage implements IStorage {
     return pledge;
   }
 
-  // Initialize database with sample data
   async initializeData() {
     // Initialize pledges
     const pledgeTexts = [

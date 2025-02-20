@@ -6,35 +6,52 @@ import path from "path";
 import fs from "fs/promises";
 
 // Create uploads directory if it doesn't exist
-fs.mkdir("./uploads", { recursive: true }).catch(error => {console.error("Error creating upload directory:", error)});
+fs.mkdir("./uploads", { recursive: true }).catch(error => {
+  console.error("Error creating upload directory:", error);
+});
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: "./uploads",
+    destination: (req, file, cb) => {
+      cb(null, "./uploads");
+    },
     filename: (req, file, cb) => {
       try {
-        // Get the fields from the FormData
-        const name = req.body.name || 'unnamed';
-        const grade = req.body.grade || 'nograde';
-        const celebrity = req.body.celebrity || 'nocelebrity';
+        console.log("File upload request received:", {
+          body: req.body,
+          file: file
+        });
+
+        const { name, grade, celebrity } = req.body;
+
+        if (!name || !grade || !celebrity) {
+          return cb(new Error(`Missing required fields. Got name: ${name}, grade: ${grade}, celebrity: ${celebrity}`), '');
+        }
 
         // Sanitize the filename components
         const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedGrade = grade.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-        const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}_${timestamp}${path.extname(file.originalname)}`;
+        const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}.webm`;
         console.log("Generated filename:", filename);
         cb(null, filename);
       } catch (error) {
-        console.error("Error generating filename:", error);
+        console.error("Error in filename generation:", error);
         cb(error as Error, '');
       }
-    },
+    }
   }),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    console.log("Received file:", file.originalname, "mimetype:", file.mimetype);
+    if (!file.mimetype.startsWith('video/')) {
+      cb(new Error('Only video files are allowed'));
+      return;
+    }
+    cb(null, true);
   }
 });
 
@@ -43,24 +60,34 @@ export function registerRoutes(app: Express): Server {
   app.use(express.urlencoded({ extended: true }));
 
   app.get("/api/users/grade/:grade", async (req, res) => {
-    const grade = req.params.grade.toLowerCase();
-    console.log(`Received request for users in grade: ${grade}`);
-    const users = await storage.getUsersByGradeNotSubmitted(grade);
-    console.log(`Returning ${users.length} users for grade ${grade}`);
-    res.json(users);
+    try {
+      const grade = req.params.grade.toLowerCase();
+      console.log(`Received request for users in grade: ${grade}`);
+      const users = await storage.getUsersByGradeNotSubmitted(grade);
+      console.log(`Returning ${users.length} users for grade ${grade}`);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users by grade:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
   });
 
   app.get("/api/pledges/:code", async (req, res) => {
-    const pledge = await storage.getPledgeByCode(req.params.code);
-    if (!pledge) return res.status(404).json({ message: "Pledge not found" });
-    res.json(pledge);
+    try {
+      const pledge = await storage.getPledgeByCode(req.params.code);
+      if (!pledge) return res.status(404).json({ message: "Pledge not found" });
+      res.json(pledge);
+    } catch (error) {
+      console.error("Error fetching pledge:", error);
+      res.status(500).json({ message: "Failed to fetch pledge" });
+    }
   });
 
   app.post("/api/videos", upload.single("video"), async (req, res) => {
     try {
       console.log("Video upload request received", {
         body: req.body,
-        file: req.file,
+        file: req.file
       });
 
       if (!req.file) {
@@ -68,20 +95,30 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "No video file uploaded" });
       }
 
-      const { userId, celebrity } = req.body;
+      const { userId, name, grade, celebrity } = req.body;
+      if (!userId || !name || !grade || !celebrity) {
+        return res.status(400).json({ 
+          message: "Missing required fields",
+          received: { userId, name, grade, celebrity }
+        });
+      }
+
       console.log("Updating user status", { userId, celebrity });
 
       const videoUrl = `/uploads/${req.file.filename}`;
-      // Update user's video submission status, favorite celebrity and URL
       await storage.updateUserVideoStatus(parseInt(userId), celebrity, videoUrl);
 
       res.json({ 
         message: "Video uploaded successfully",
-        filename: req.file.filename
+        filename: req.file.filename,
+        url: videoUrl
       });
     } catch (error) {
       console.error("Video upload error:", error);
-      res.status(500).json({ message: "Failed to upload video" });
+      res.status(500).json({ 
+        message: "Failed to upload video",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Form,
   FormField,
@@ -90,8 +90,13 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     setSelectedGrade(value);
     form.setValue('grade', value);
     form.setValue('name', ''); // Reset name when grade changes
+    setSelectedUser(null); // Reset selected user when grade changes
+
     // Invalidate and refetch users for the new grade
-    queryClient.invalidateQueries({ queryKey: ["/api/users/grade", value] });
+    queryClient.invalidateQueries({ 
+      queryKey: ["/api/users/grade", value],
+      exact: true 
+    });
   };
 
   const personalizedPledgeText = pledge?.pledgeText
@@ -101,6 +106,9 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
+        <DialogTitle className="text-2xl font-bold mb-4">
+          Take The Pledge
+        </DialogTitle>
         {step === 1 ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -200,7 +208,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               setSelectedGrade("");
               setSelectedUser(null);
               // Invalidate the users query to refresh the list
-              queryClient.invalidateQueries({ queryKey: ["/api/users/grade", selectedGrade] });
+              queryClient.invalidateQueries({ 
+                queryKey: ["/api/users/grade", selectedGrade],
+                exact: true 
+              });
             }}
             userData={selectedUser}
           />
