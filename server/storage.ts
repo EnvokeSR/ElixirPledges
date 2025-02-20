@@ -7,7 +7,7 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   getUsersByGrade(grade: string): Promise<User[]>;
   getUsersByGradeNotSubmitted(grade: string): Promise<User[]>;
-  updateUserVideoStatus(id: number): Promise<User>;
+  updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User>;
   // Pledges
   getPledges(): Promise<Pledge[]>;
   getPledgeByCode(code: string): Promise<Pledge | undefined>;
@@ -25,11 +25,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
-    return await db.select()
+    console.log(`Fetching users for grade ${grade} with videoSubmitted=false`);
+    const result = await db.select()
       .from(users)
       .where(eq(users.grade, grade))
       .where(eq(users.videoSubmitted, false))
       .orderBy(users.name);
+
+    console.log(`Found ${result.length} users for grade ${grade} without submitted videos`);
+    return result;
   }
 
   async updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User> {

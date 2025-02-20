@@ -16,10 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import VideoRecorder from "./video-recorder";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface PledgeModalProps {
   open: boolean;
@@ -35,8 +36,9 @@ interface FormData {
 export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [step, setStep] = useState(1);
-  const [selectedGrade, setSelectedGrade] = useState(""); // Added state for selected grade
+  const [selectedGrade, setSelectedGrade] = useState("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -46,24 +48,30 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  const { data: users = [], refetch: refetchUsers } = useQuery({
-    queryKey: ["users", selectedGrade],
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["/api/users/grade", selectedGrade],
     queryFn: async () => {
+      console.log("Fetching users for grade:", selectedGrade);
       if (!selectedGrade) return [];
       const response = await fetch(`/api/users/grade/${selectedGrade}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
       const data = await response.json();
-      return data.filter((user: any) => !user.videoSubmitted);
+      console.log("Fetched users:", data);
+      return data;
     },
-    enabled: false,
-    staleTime: 0,
-    cacheTime: 0,
+    enabled: !!selectedGrade,
   });
 
-  const { data: pledge } = useQuery({
-    queryKey: ["pledge", selectedUser?.pledgeCode],
+  const { data: pledge, isLoading: isLoadingPledge } = useQuery({
+    queryKey: ["/api/pledges", selectedUser?.pledgeCode],
     queryFn: async () => {
       if (!selectedUser?.pledgeCode) return null;
       const response = await fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch pledge');
+      }
       return response.json();
     },
     enabled: !!selectedUser?.pledgeCode,
@@ -75,6 +83,15 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
       setSelectedUser({ ...user, favoriteCelebrity: data.celebrity });
       setStep(2);
     }
+  };
+
+  const handleGradeChange = (value: string) => {
+    console.log("Grade changed to:", value);
+    setSelectedGrade(value);
+    form.setValue('grade', value);
+    form.setValue('name', ''); // Reset name when grade changes
+    // Invalidate and refetch users for the new grade
+    queryClient.invalidateQueries({ queryKey: ["/api/users/grade", value] });
   };
 
   const personalizedPledgeText = pledge?.pledgeText
@@ -94,11 +111,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                   <FormItem>
                     <FormLabel>Grade</FormLabel>
                     <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setSelectedGrade(value);
-                        refetchUsers();
-                      }}
+                      onValueChange={handleGradeChange}
                       value={field.value}
                     >
                       <FormControl>
@@ -121,15 +134,26 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={!selectedGrade || isLoadingUsers}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select your name" />
+                          {isLoadingUsers ? (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Loading names...</span>
+                            </div>
+                          ) : (
+                            <SelectValue placeholder="Select your name" />
+                          )}
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {users.map((user: any) => (
-                          <SelectItem key={`user-${user.id}`} value={user.name}>
+                          <SelectItem key={user.id} value={user.name}>
                             {user.name}
                           </SelectItem>
                         ))}
@@ -152,7 +176,11 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 )}
               />
 
-              <Button type="submit" className="w-full">
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoadingUsers || isLoadingPledge}
+              >
                 Continue
               </Button>
             </form>
@@ -168,6 +196,11 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               });
               onOpenChange(false);
               setStep(1);
+              form.reset();
+              setSelectedGrade("");
+              setSelectedUser(null);
+              // Invalidate the users query to refresh the list
+              queryClient.invalidateQueries({ queryKey: ["/api/users/grade", selectedGrade] });
             }}
             userData={selectedUser}
           />

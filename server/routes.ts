@@ -44,7 +44,9 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/users/grade/:grade", async (req, res) => {
     const grade = req.params.grade.toLowerCase();
+    console.log(`Received request for users in grade: ${grade}`);
     const users = await storage.getUsersByGradeNotSubmitted(grade);
+    console.log(`Returning ${users.length} users for grade ${grade}`);
     res.json(users);
   });
 
