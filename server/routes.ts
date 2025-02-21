@@ -80,6 +80,9 @@ const errorResponse = (message: string, status = 500) => ({
 export function registerRoutes(app: Express): Server {
   app.use(express.urlencoded({ extended: true }));
 
+  // Serve uploaded files statically
+  app.use('/uploads', express.static(UPLOAD_DIR));
+
   // Health check endpoint
   app.get("/api/health", async (_req, res) => {
     try {
@@ -127,6 +130,8 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/videos", upload.single("video"), asyncHandler(async (req, res) => {
     log("Received video upload request");
+    log("Request body:", req.body);
+    log("Request file:", req.file);
 
     if (!req.file) {
       log("No file received in the request");
