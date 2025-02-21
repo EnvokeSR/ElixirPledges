@@ -31,26 +31,34 @@ export const api = {
           'Content-Type': 'application/json',
           ...(options.headers || {})
         },
-        credentials: 'include'  // Changed from 'same-origin' to 'include' for cross-origin requests
+        credentials: 'include'
       });
 
       // Log response status and headers for debugging
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-      let data: ApiResponse<T>;
-      try {
-        data = await response.json();
-      } catch (error) {
-        console.error('Failed to parse JSON response:', error);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Invalid content type. Expected JSON response.');
+      }
+
+      const data = await response.json();
+
+      // Ensure the response follows our expected format
+      if (!data || (data.status !== 'ok' && data.status !== 'error')) {
         throw new Error('Invalid response format from server');
       }
 
-      if (!response.ok || data.status === 'error') {
-        throw new Error(data.message || response.statusText || 'Request failed');
+      if (data.status === 'error') {
+        throw new Error(data.message || 'An error occurred');
       }
 
-      // Handle both old and new response formats
+      // Return the data property if it exists, otherwise return the entire response
       return (data.data !== undefined ? data.data : data) as T;
     } catch (error) {
       console.error('API Request failed:', {
@@ -63,6 +71,7 @@ export const api = {
         description: error instanceof Error ? error.message : "Failed to complete request",
         variant: "destructive",
       });
+
       throw error;
     }
   }

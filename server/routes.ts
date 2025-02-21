@@ -14,10 +14,10 @@ fs.mkdir("./uploads", { recursive: true }).catch(error => {
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
+    destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
       cb(null, "./uploads");
     },
-    filename: (req, file, cb) => {
+    filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
       try {
         const { name, grade, celebrity } = req.body;
         if (!name || !grade || !celebrity) {
@@ -30,15 +30,16 @@ const upload = multer({
         log("Generated filename:", filename);
         cb(null, filename);
       } catch (error) {
-        log("Error in filename generation:", error);
-        cb(error as Error, '');
+        const errorMessage = error instanceof Error ? error.message : 'Error in filename generation';
+        log(errorMessage);
+        cb(new Error(errorMessage), '');
       }
     }
   }),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     if (!file.mimetype.startsWith('video/')) {
       cb(new Error('Only video files are allowed'));
       return;
@@ -76,16 +77,17 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Standardized error wrapper for async route handlers
-  const asyncHandler = (fn: Function) => async (req: any, res: any, next: any) => {
-    try {
-      await fn(req, res, next);
-    } catch (error) {
-      log("Route error:", error);
-      const status = error instanceof Error && 'statusCode' in error ? (error as any).statusCode : 500;
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(status).json(errorResponse(message, status));
-    }
-  };
+  const asyncHandler = (fn: (req: express.Request, res: express.Response, next: express.NextFunction) => Promise<void>) => 
+    async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      try {
+        await fn(req, res, next);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log("Route error:", errorMessage);
+        const status = error instanceof Error && 'statusCode' in error ? (error as any).statusCode : 500;
+        res.status(status).json(errorResponse(errorMessage, status));
+      }
+    };
 
   app.get("/api/users", asyncHandler(async (_req, res) => {
     const users = await storage.getAllUsersNotSubmitted();

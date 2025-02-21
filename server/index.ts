@@ -59,49 +59,82 @@ app.use((req, res, next) => {
   next();
 });
 
-let server: any = null;
+// Create a single server instance
+const server = registerRoutes(app);
 
 async function startServer(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      validateEnvironment();
+  try {
+    validateEnvironment();
+    await testConnection();
+    log("Database connection verified");
 
-      // Try different ports if the default is in use
-      const tryPort = (port: number): Promise<void> => {
-        return new Promise((resolvePort, rejectPort) => {
-          server = registerRoutes(app);
-
-          server.listen(port, "0.0.0.0")
-            .once('error', (err: NodeJS.ErrnoException) => {
-              if (err.code === 'EADDRINUSE') {
-                log(`Port ${port} is in use, trying ${port + 1}`);
-                server.close();
-                resolvePort(tryPort(port + 1));
-              } else {
-                rejectPort(err);
-              }
-            })
-            .once('listening', () => {
-              const actualPort = (server.address() as any).port;
-              log(`Server successfully started on port ${actualPort}`);
-              resolvePort();
-            });
-        });
-      };
-
-      // Test database connection before starting server
-      testConnection()
-        .then(() => {
-          log("Database connection verified");
-          return tryPort(parseInt(process.env.PORT || "5000"));
-        })
-        .then(resolve)
-        .catch(reject);
-    } catch (error) {
-      reject(error);
+    // Set up Vite middleware or static serving based on environment
+    if (process.env.NODE_ENV !== "production") {
+      log("Setting up Vite middleware for development");
+      await setupVite(app, server);
+    } else {
+      log("Setting up static file serving for production");
+      serveStatic(app);
     }
-  });
+
+    // Try different ports if the default is in use
+    const startPort = parseInt(process.env.PORT || "5000");
+    const maxRetries = 10;
+
+    for (let port = startPort; port < startPort + maxRetries; port++) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const bindServer = server.listen(port, "0.0.0.0");
+
+          bindServer.once('error', (err: NodeJS.ErrnoException) => {
+            if (err.code === 'EADDRINUSE') {
+              log(`Port ${port} is in use, trying next port`);
+              bindServer.close();
+              resolve(); // Continue to next port
+            } else {
+              reject(err);
+            }
+          });
+
+          bindServer.once('listening', () => {
+            const address = bindServer.address();
+            const actualPort = typeof address === 'object' && address ? address.port : port;
+            log(`Server successfully started on port ${actualPort}`);
+            resolve(); // Successfully bound to port
+          });
+        });
+
+        // If we get here, the server was successfully bound
+        log(`Server is ready and listening on port ${port}`);
+        return;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log(`Failed to bind to port ${port}: ${errorMessage}`);
+
+        // If this was the last retry, throw the error
+        if (port === startPort + maxRetries - 1) {
+          throw new Error(`Could not find an available port after ${maxRetries} attempts`);
+        }
+      }
+    }
+  } catch (error) {
+    log(`Critical error starting server: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
+
+// Global error handler
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  log(`[${process.env.NODE_ENV}] Error: ${status} - ${message}`);
+
+  res.status(status).json({
+    status: "error",
+    message,
+    error: process.env.NODE_ENV === 'development' ? err.stack : 'An error occurred'
+  });
+});
 
 // Graceful shutdown handler
 function shutdown() {
@@ -120,33 +153,5 @@ function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-// Global error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  log(`[${process.env.NODE_ENV}] Error: ${status} - ${message}`);
-
-  res.status(status).json({
-    status: "error",
-    message,
-    error: process.env.NODE_ENV === 'development' ? err.message : 'An error occurred'
-  });
-});
-
-(async () => {
-  try {
-    // Set up appropriate middleware based on environment
-    if (process.env.NODE_ENV !== "production") {
-      log("Setting up Vite middleware for development");
-      await setupVite(app, registerRoutes(app));
-    } else {
-      log("Setting up static file serving for production");
-      serveStatic(app);
-    }
-
-    await startServer();
-  } catch (error) {
-    log(`Critical error starting server: ${error}`);
-    process.exit(1);
-  }
-})();
+// Start the server
+startServer();
