@@ -26,7 +26,8 @@ const upload = multer({
         const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedGrade = grade.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}.webm`;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}_${timestamp}.webm`;
         log("Generated filename:", filename);
         cb(null, filename);
       } catch (error) {
