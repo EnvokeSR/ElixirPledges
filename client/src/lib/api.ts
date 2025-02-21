@@ -17,6 +17,7 @@ type ApiResponse<T> = {
   status: 'ok' | 'error';
   data?: T;
   message?: string;
+  statusCode?: number;
 };
 
 export const api = {
@@ -47,19 +48,31 @@ export const api = {
         throw new Error('Invalid content type. Expected JSON response.');
       }
 
-      const data = await response.json();
+      const jsonResponse: ApiResponse<T> = await response.json();
+      console.log('API Response:', jsonResponse); // Add detailed logging
 
-      // Ensure the response follows our expected format
-      if (!data || (data.status !== 'ok' && data.status !== 'error')) {
-        throw new Error('Invalid response format from server');
+      // Check if the response follows our expected format
+      if (!jsonResponse || typeof jsonResponse !== 'object') {
+        throw new Error('Invalid response format: Response is not an object');
       }
 
-      if (data.status === 'error') {
-        throw new Error(data.message || 'An error occurred');
+      if (!('status' in jsonResponse)) {
+        throw new Error('Invalid response format: Missing status field');
       }
 
-      // Return the data property if it exists, otherwise return the entire response
-      return (data.data !== undefined ? data.data : data) as T;
+      if (jsonResponse.status === 'error') {
+        throw new Error(jsonResponse.message || 'An error occurred');
+      }
+
+      // If we have data property, return it, otherwise return the whole response minus status
+      if ('data' in jsonResponse && jsonResponse.data !== undefined) {
+        return jsonResponse.data as T;
+      }
+
+      // If no data property, remove status and return the rest
+      const { status, ...rest } = jsonResponse;
+      return rest as T;
+
     } catch (error) {
       console.error('API Request failed:', {
         url,

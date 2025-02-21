@@ -68,14 +68,9 @@ async function startServer(): Promise<void> {
     await testConnection();
     log("Database connection verified");
 
-    // Set up Vite middleware or static serving based on environment
-    if (process.env.NODE_ENV !== "production") {
-      log("Setting up Vite middleware for development");
-      await setupVite(app, server);
-    } else {
-      log("Setting up static file serving for production");
-      serveStatic(app);
-    }
+    // For debugging, temporarily use static serving even in development
+    log("Setting up static file serving for debugging");
+    serveStatic(app);
 
     // Try different ports if the default is in use
     const startPort = parseInt(process.env.PORT || "5000");
