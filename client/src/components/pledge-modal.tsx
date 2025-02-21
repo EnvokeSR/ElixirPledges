@@ -21,6 +21,7 @@ import { useState } from "react";
 import VideoRecorder from "./video-recorder";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface PledgeModalProps {
   open: boolean;
@@ -48,20 +49,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  // First, check if the API is accessible
   const { isError: isHealthCheckError } = useQuery({
     queryKey: ["/api/health"],
     queryFn: async () => {
-      try {
-        const response = await fetch("/api/health");
-        if (!response.ok) {
-          throw new Error(`Health check failed: ${response.status}`);
-        }
-        return response.json();
-      } catch (error) {
-        console.error("Health check error:", error);
-        throw error;
-      }
+      return api.fetch("/api/health");
     },
   });
 
@@ -70,32 +61,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     queryFn: async () => {
       console.log("Fetching users for grade:", selectedGrade);
       if (!selectedGrade) return [];
-      try {
-        const response = await fetch(`/api/users/grade/${selectedGrade}`);
-        console.log("API Response status:", response.status);
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error("Failed to fetch users:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData
-          });
-          throw new Error('Failed to fetch users');
-        }
-
-        const data = await response.json();
-        console.log("Fetched users:", data);
-        return data;
-      } catch (error) {
-        console.error("Error in users fetch:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load student names. Please try again.",
-          variant: "destructive",
-        });
-        throw error;
-      }
+      return api.fetch(`/api/users/grade/${selectedGrade}`);
     },
     enabled: !!selectedGrade && !isHealthCheckError,
     retry: 2,
@@ -105,27 +71,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     queryKey: ["/api/pledges", selectedUser?.pledgeCode],
     queryFn: async () => {
       if (!selectedUser?.pledgeCode) return null;
-      try {
-        const response = await fetch(`/api/pledges/${selectedUser.pledgeCode}`);
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error("Failed to fetch pledge:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData
-          });
-          throw new Error('Failed to fetch pledge');
-        }
-        return response.json();
-      } catch (error) {
-        console.error("Error in pledge fetch:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load pledge information. Please try again.",
-          variant: "destructive",
-        });
-        throw error;
-      }
+      return api.fetch(`/api/pledges/${selectedUser.pledgeCode}`);
     },
     enabled: !!selectedUser?.pledgeCode,
     retry: 2,
@@ -143,15 +89,14 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     console.log("Grade changed to:", value);
     setSelectedGrade(value);
     form.setValue('grade', value);
-    form.setValue('name', ''); // Reset name when grade changes
-    setSelectedUser(null); // Reset selected user when grade changes
+    form.setValue('name', ''); 
+    setSelectedUser(null); 
   };
 
   const personalizedPledgeText = pledge?.pledgeText
     ? `I, ${selectedUser?.name}, pledge to, ${pledge.pledgeText}\n\nI nominate ${selectedUser?.favoriteCelebrity} to take this pledge with me.`
     : "";
 
-  // Filter users based on selected grade for display only
   const filteredUsers = selectedGrade
     ? users.filter((user: any) => user.grade.toLowerCase() === selectedGrade.toLowerCase())
     : users;
@@ -273,7 +218,6 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               form.reset();
               setSelectedGrade("");
               setSelectedUser(null);
-              // Invalidate the users query to refresh the list
               queryClient.invalidateQueries({
                 queryKey: ["/api/users/grade", selectedGrade],
                 exact: true
