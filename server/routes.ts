@@ -59,9 +59,25 @@ export function registerRoutes(app: Express): Server {
   app.use(express.urlencoded({ extended: true }));
 
   // Debug endpoint to check if API is accessible
-  app.get("/api/health", (_req, res) => {
-    log("Health check endpoint called");
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/api/health", async (_req, res) => {
+    try {
+      log("Health check endpoint called");
+      // Test database connection
+      const users = await storage.getAllUsersNotSubmitted();
+      log(`Database connection successful, found ${users.length} users`);
+      res.json({ 
+        status: "ok", 
+        timestamp: new Date().toISOString(),
+        database: "connected"
+      });
+    } catch (error) {
+      log("Database connection error:", error);
+      res.status(503).json({ 
+        status: "error", 
+        message: "Database connection failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   app.get("/api/users", async (req, res) => {
