@@ -49,36 +49,23 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  // Enhanced health check query with better error handling
+  // Simple health check query
   const { isError: isHealthCheckError, error: healthCheckError } = useQuery({
     queryKey: ["/api/health"],
     queryFn: async () => {
-      try {
-        const response = await api.fetch("/api/health");
-        console.log("Health check response:", response);
-        return response;
-      } catch (error) {
-        console.error("Health check failed:", error);
-        throw error;
-      }
+      const response = await api.fetch("/api/health");
+      return response;
     },
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ["/api/users/grade", selectedGrade],
     queryFn: async () => {
-      console.log("Fetching users for grade:", selectedGrade);
       if (!selectedGrade) return [];
-      try {
-        const response = await api.fetch(`/api/users/grade/${selectedGrade}`);
-        console.log("Users response:", response);
-        return response;
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        throw error;
-      }
+      const response = await api.fetch<any[]>(`/api/users/grade/${selectedGrade}`);
+      return response;
     },
     enabled: !!selectedGrade && !isHealthCheckError,
     retry: 2,
@@ -88,16 +75,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     queryKey: ["/api/pledges", selectedUser?.pledgeCode],
     queryFn: async () => {
       if (!selectedUser?.pledgeCode) return null;
-      try {
-        const response = await api.fetch(`/api/pledges/${selectedUser.pledgeCode}`);
-        console.log("Pledge response:", response);
-        return response;
-      } catch (error) {
-        console.error("Error fetching pledge:", error);
-        throw error;
-      }
+      const response = await api.fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+      return response;
     },
-    enabled: !!selectedUser?.pledgeCode,
+    enabled: !!selectedUser?.pledgeCode && !isHealthCheckError,
     retry: 2,
   });
 
@@ -108,10 +89,17 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
           <DialogTitle className="text-2xl font-bold mb-4">
             Service Unavailable
           </DialogTitle>
-          <p className="text-destructive">The service is currently unavailable. Please try again later.</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Error: {healthCheckError instanceof Error ? healthCheckError.message : "Unknown error"}
+          <p className="text-destructive">
+            {healthCheckError instanceof Error ? healthCheckError.message : "The service is currently unavailable. Please try again later."}
           </p>
+          <Button 
+            className="mt-4"
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/health"] });
+            }}
+          >
+            Retry Connection
+          </Button>
         </DialogContent>
       </Dialog>
     );
@@ -183,7 +171,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
-                      disabled={isLoadingUsers}
+                      disabled={isLoadingUsers || !selectedGrade}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -225,7 +213,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoadingUsers || isLoadingPledge}
+                disabled={isLoadingUsers || isLoadingPledge || !form.getValues('name') || !form.getValues('celebrity')}
               >
                 Continue
               </Button>
