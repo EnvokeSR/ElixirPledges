@@ -2,12 +2,13 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { testConnection } from "./db";
 
 const app = express();
 
 // Configure CORS to allow all origins in development
 const corsOptions = {
-  origin: true, // This allows any origin
+  origin: true,
   credentials: true,
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -39,11 +40,6 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
       log(logLine);
     }
   });
@@ -56,17 +52,34 @@ async function startServer(): Promise<void> {
     const server = registerRoutes(app);
     const PORT = process.env.PORT || 5000;
 
-    log(`Starting server on port ${PORT}...`);
+    // Test database connection before starting server
+    testConnection()
+      .then(() => {
+        log("Database connection verified, starting server...");
 
-    // Listen on all network interfaces
-    server.listen(PORT, '0.0.0.0', () => {
-      log(`Server successfully started and listening on port ${PORT}`);
-      log(`Server is accessible at http://0.0.0.0:${PORT}`);
-      resolve();
-    }).on('error', (err: NodeJS.ErrnoException) => {
-      log(`Failed to start server: ${err.message}`);
-      reject(err);
-    });
+        server.listen(PORT, '0.0.0.0', () => {
+          log(`Server successfully started and listening on port ${PORT}`);
+          log(`Server is accessible at http://0.0.0.0:${PORT}`);
+          resolve();
+        }).on('error', (err: NodeJS.ErrnoException) => {
+          if (err.code === 'EADDRINUSE') {
+            log(`Port ${PORT} is in use, trying alternate port...`);
+            const alternatePort = parseInt(PORT.toString()) + 1;
+            server.listen(alternatePort, '0.0.0.0', () => {
+              log(`Server successfully started on alternate port ${alternatePort}`);
+              log(`Server is accessible at http://0.0.0.0:${alternatePort}`);
+              resolve();
+            }).on('error', reject);
+          } else {
+            log(`Failed to start server: ${err.message}`);
+            reject(err);
+          }
+        });
+      })
+      .catch(err => {
+        log(`Database connection failed: ${err.message}`);
+        reject(err);
+      });
   });
 }
 

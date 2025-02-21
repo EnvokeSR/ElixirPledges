@@ -5,10 +5,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { log } from "./vite";
+import { testConnection } from "./db";
 
 // Create uploads directory if it doesn't exist
 fs.mkdir("./uploads", { recursive: true }).catch(error => {
-  console.error("Error creating upload directory:", error);
+  log("Error creating upload directory:", error);
 });
 
 const upload = multer({
@@ -18,21 +19,13 @@ const upload = multer({
     },
     filename: (req, file, cb) => {
       try {
-        log("File upload request received:", {
-          body: req.body,
-          file: file
-        });
-
         const { name, grade, celebrity } = req.body;
-
         if (!name || !grade || !celebrity) {
           return cb(new Error(`Missing required fields. Got name: ${name}, grade: ${grade}, celebrity: ${celebrity}`), '');
         }
-
         const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedGrade = grade.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
         const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}.webm`;
         log("Generated filename:", filename);
         cb(null, filename);
@@ -46,7 +39,6 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
-    log("Received file:", file.originalname, "mimetype:", file.mimetype);
     if (!file.mimetype.startsWith('video/')) {
       cb(new Error('Only video files are allowed'));
       return;
@@ -58,24 +50,54 @@ const upload = multer({
 export function registerRoutes(app: Express): Server {
   app.use(express.urlencoded({ extended: true }));
 
-  // Debug endpoint to check if API is accessible
+  // Enhanced health check endpoint with detailed error reporting
   app.get("/api/health", async (_req, res) => {
     try {
       log("Health check endpoint called");
+
       // Test database connection
-      const users = await storage.getAllUsersNotSubmitted();
-      log(`Database connection successful, found ${users.length} users`);
-      res.json({ 
-        status: "ok", 
+      const dbConnectionTest = await testConnection();
+      log("Database connection test successful:", dbConnectionTest);
+
+      // Test storage layer with timeout
+      const storageTestPromise = new Promise(async (resolve, reject) => {
+        try {
+          const users = await storage.getAllUsersNotSubmitted();
+          log(`Storage layer test successful, found ${users.length} users`);
+          resolve({ users_count: users.length });
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      const storageResult = await Promise.race([
+        storageTestPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Storage layer test timed out")), 5000)
+        )
+      ]);
+
+      res.json({
+        status: "ok",
         timestamp: new Date().toISOString(),
-        database: "connected"
+        database: {
+          connected: true,
+          timestamp: dbConnectionTest.now
+        },
+        storage: {
+          working: true,
+          ...storageResult
+        }
       });
     } catch (error) {
-      log("Database connection error:", error);
-      res.status(503).json({ 
-        status: "error", 
-        message: "Database connection failed",
-        error: error instanceof Error ? error.message : String(error)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log("Health check failed:", errorMessage);
+
+      res.status(503).json({
+        status: "error",
+        timestamp: new Date().toISOString(),
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : "No stack trace available"
       });
     }
   });
@@ -89,7 +111,7 @@ export function registerRoutes(app: Express): Server {
       res.json(users);
     } catch (error) {
       log("Error fetching users:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to fetch users",
         error: error instanceof Error ? error.message : String(error)
       });
@@ -109,7 +131,7 @@ export function registerRoutes(app: Express): Server {
       res.json(users);
     } catch (error) {
       log("Error fetching users by grade:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to fetch users by grade",
         error: error instanceof Error ? error.message : String(error)
       });
@@ -141,7 +163,7 @@ export function registerRoutes(app: Express): Server {
 
       const { userId, name, grade, celebrity } = req.body;
       if (!userId || !name || !grade || !celebrity) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Missing required fields",
           received: { userId, name, grade, celebrity }
         });
@@ -152,14 +174,14 @@ export function registerRoutes(app: Express): Server {
       const videoUrl = `/uploads/${req.file.filename}`;
       await storage.updateUserVideoStatus(parseInt(userId), celebrity, videoUrl);
 
-      res.json({ 
+      res.json({
         message: "Video uploaded successfully",
         filename: req.file.filename,
         url: videoUrl
       });
     } catch (error) {
       log("Video upload error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to upload video",
         error: error instanceof Error ? error.message : "Unknown error"
       });

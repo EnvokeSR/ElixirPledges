@@ -49,11 +49,21 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
-  const { isError: isHealthCheckError } = useQuery({
+  // Enhanced health check query with better error handling
+  const { isError: isHealthCheckError, error: healthCheckError } = useQuery({
     queryKey: ["/api/health"],
     queryFn: async () => {
-      return api.fetch("/api/health");
+      try {
+        const response = await api.fetch("/api/health");
+        console.log("Health check response:", response);
+        return response;
+      } catch (error) {
+        console.error("Health check failed:", error);
+        throw error;
+      }
     },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
@@ -61,7 +71,14 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     queryFn: async () => {
       console.log("Fetching users for grade:", selectedGrade);
       if (!selectedGrade) return [];
-      return api.fetch(`/api/users/grade/${selectedGrade}`);
+      try {
+        const response = await api.fetch(`/api/users/grade/${selectedGrade}`);
+        console.log("Users response:", response);
+        return response;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        throw error;
+      }
     },
     enabled: !!selectedGrade && !isHealthCheckError,
     retry: 2,
@@ -71,11 +88,34 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     queryKey: ["/api/pledges", selectedUser?.pledgeCode],
     queryFn: async () => {
       if (!selectedUser?.pledgeCode) return null;
-      return api.fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+      try {
+        const response = await api.fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+        console.log("Pledge response:", response);
+        return response;
+      } catch (error) {
+        console.error("Error fetching pledge:", error);
+        throw error;
+      }
     },
     enabled: !!selectedUser?.pledgeCode,
     retry: 2,
   });
+
+  if (isHealthCheckError) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle className="text-2xl font-bold mb-4">
+            Service Unavailable
+          </DialogTitle>
+          <p className="text-destructive">The service is currently unavailable. Please try again later.</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Error: {healthCheckError instanceof Error ? healthCheckError.message : "Unknown error"}
+          </p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const onSubmit = (data: FormData) => {
     const user = users.find((u: any) => u.name === data.name);
@@ -100,19 +140,6 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const filteredUsers = selectedGrade
     ? users.filter((user: any) => user.grade.toLowerCase() === selectedGrade.toLowerCase())
     : users;
-
-  if (isHealthCheckError) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <DialogTitle className="text-2xl font-bold mb-4">
-            Service Unavailable
-          </DialogTitle>
-          <p>Unable to connect to the server. Please try again later.</p>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
