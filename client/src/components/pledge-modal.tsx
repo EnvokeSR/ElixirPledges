@@ -48,35 +48,87 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     },
   });
 
+  // First, check if the API is accessible
+  const { isError: isHealthCheckError } = useQuery({
+    queryKey: ["/api/health"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/health");
+        if (!response.ok) {
+          throw new Error(`Health check failed: ${response.status}`);
+        }
+        return response.json();
+      } catch (error) {
+        console.error("Health check error:", error);
+        throw error;
+      }
+    },
+  });
+
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ["/api/users/grade", selectedGrade],
     queryFn: async () => {
       console.log("Fetching users for grade:", selectedGrade);
       if (!selectedGrade) return [];
-      const response = await fetch(`/api/users/grade/${selectedGrade}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Failed to fetch users:", errorData);
-        throw new Error('Failed to fetch users');
+      try {
+        const response = await fetch(`/api/users/grade/${selectedGrade}`);
+        console.log("API Response status:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to fetch users:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          throw new Error('Failed to fetch users');
+        }
+
+        const data = await response.json();
+        console.log("Fetched users:", data);
+        return data;
+      } catch (error) {
+        console.error("Error in users fetch:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load student names. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
       }
-      const data = await response.json();
-      console.log("Fetched users:", data);
-      return data;
     },
-    enabled: !!selectedGrade,
+    enabled: !!selectedGrade && !isHealthCheckError,
+    retry: 2,
   });
 
   const { data: pledge, isLoading: isLoadingPledge } = useQuery({
     queryKey: ["/api/pledges", selectedUser?.pledgeCode],
     queryFn: async () => {
       if (!selectedUser?.pledgeCode) return null;
-      const response = await fetch(`/api/pledges/${selectedUser.pledgeCode}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch pledge');
+      try {
+        const response = await fetch(`/api/pledges/${selectedUser.pledgeCode}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to fetch pledge:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+          throw new Error('Failed to fetch pledge');
+        }
+        return response.json();
+      } catch (error) {
+        console.error("Error in pledge fetch:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load pledge information. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
       }
-      return response.json();
     },
     enabled: !!selectedUser?.pledgeCode,
+    retry: 2,
   });
 
   const onSubmit = (data: FormData) => {
@@ -103,6 +155,19 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const filteredUsers = selectedGrade
     ? users.filter((user: any) => user.grade.toLowerCase() === selectedGrade.toLowerCase())
     : users;
+
+  if (isHealthCheckError) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle className="text-2xl font-bold mb-4">
+            Service Unavailable
+          </DialogTitle>
+          <p>Unable to connect to the server. Please try again later.</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
