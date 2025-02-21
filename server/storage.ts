@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 export interface IStorage {
   getUsers(): Promise<User[]>;
   getUsersByGrade(grade: string): Promise<User[]>;
-  getUsersNotSubmitted(): Promise<User[]>;
+  getUsersByGradeNotSubmitted(grade: string): Promise<User[]>;
   updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User>;
   getPledges(): Promise<Pledge[]>;
   getPledgeByCode(code: string): Promise<Pledge | undefined>;
@@ -22,18 +22,23 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.grade, grade));
   }
 
-  async getUsersNotSubmitted(): Promise<User[]> {
-    console.log('Fetching all users with videoSubmitted=false');
+  async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
+    console.log(`Fetching users for grade ${grade} with videoSubmitted=false`);
     try {
       const result = await db.select()
         .from(users)
-        .where(eq(users.videoSubmitted, false))
+        .where(
+          and(
+            eq(users.grade, grade),
+            eq(users.videoSubmitted, false)
+          )
+        )
         .orderBy(users.name);
 
-      console.log(`Found ${result.length} users without submitted videos`);
+      console.log(`Found ${result.length} users for grade ${grade} without submitted videos`);
       return result;
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error fetching users by grade:", error);
       throw error;
     }
   }
@@ -71,6 +76,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pledges.pledgeCode, code));
     return pledge;
   }
+
   async initializeData() {
     // Initialize pledges
     const pledgeTexts = [

@@ -59,15 +59,16 @@ export function registerRoutes(app: Express): Server {
   // Parse URL-encoded bodies (as sent by HTML forms)
   app.use(express.urlencoded({ extended: true }));
 
-  app.get("/api/users/notsubmitted", async (req, res) => {
+  app.get("/api/users/grade/:grade", async (req, res) => {
     try {
-      console.log('Received request for all unsubmitted users');
-      const users = await storage.getUsersNotSubmitted();
-      console.log(`Returning ${users.length} unsubmitted users`);
+      const grade = req.params.grade.toLowerCase();
+      console.log(`Received request for users in grade: ${grade}`);
+      const users = await storage.getUsersByGradeNotSubmitted(grade);
+      console.log(`Returning ${users.length} users for grade ${grade}:`, JSON.stringify(users));
       res.setHeader('Content-Type', 'application/json');
       res.json(users);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error fetching users by grade:", error);
       res.status(500).json({ 
         message: "Failed to fetch users",
         error: error instanceof Error ? error.message : String(error)
