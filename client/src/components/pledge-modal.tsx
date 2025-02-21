@@ -61,10 +61,13 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
         console.error("Error fetching users:", error);
         throw error;
       }
-    }
-      const data = await response.json();
-      console.log("Fetched users:", data);
-      return data;
+    const data = await response.json();
+        console.log("Fetched users:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        throw error;
+      }
     },
     enabled: !!selectedGrade,
   });
