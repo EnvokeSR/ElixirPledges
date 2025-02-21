@@ -8,18 +8,32 @@ import { log } from "./vite";
 import { testConnection } from "./db";
 
 // Create uploads directory if it doesn't exist
-fs.mkdir("./uploads", { recursive: true }).catch(error => {
-  log("Error creating upload directory:", error);
-});
+const UPLOAD_DIR = "./uploads";
+fs.mkdir(UPLOAD_DIR, { recursive: true })
+  .then(() => {
+    log(`Upload directory created/verified at ${UPLOAD_DIR}`);
+    // Verify directory is writable
+    return fs.access(UPLOAD_DIR, fs.constants.W_OK);
+  })
+  .then(() => {
+    log("Upload directory is writable");
+  })
+  .catch(error => {
+    log("Error with upload directory:", error);
+    process.exit(1); // Exit if we can't write to uploads directory
+  });
 
 const upload = multer({
   storage: multer.diskStorage({
-    destination: (_req: express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-      cb(null, "./uploads");
+    destination: (_req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+      log(`Attempting to save file ${file.originalname} to ${UPLOAD_DIR}`);
+      cb(null, UPLOAD_DIR);
     },
     filename: (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
       try {
         const { name, grade, celebrity } = req.body;
+        log(`Received upload request with name: ${name}, grade: ${grade}, celebrity: ${celebrity}`);
+
         if (!name || !grade || !celebrity) {
           return cb(new Error(`Missing required fields. Got name: ${name}, grade: ${grade}, celebrity: ${celebrity}`), '');
         }
@@ -41,6 +55,7 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (_req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    log(`Received file of type: ${file.mimetype}`);
     if (!file.mimetype.startsWith('video/')) {
       cb(new Error('Only video files are allowed'));
       return;
@@ -111,16 +126,29 @@ export function registerRoutes(app: Express): Server {
   }));
 
   app.post("/api/videos", upload.single("video"), asyncHandler(async (req, res) => {
+    log("Received video upload request");
+
     if (!req.file) {
+      log("No file received in the request");
       throw Object.assign(new Error("No video file uploaded"), { statusCode: 400 });
     }
 
+    log("File upload details:", {
+      filename: req.file.filename,
+      path: req.file.path,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
     const { userId, name, grade, celebrity } = req.body;
     if (!userId || !name || !grade || !celebrity) {
+      log("Missing required fields:", { userId, name, grade, celebrity });
       throw Object.assign(new Error("Missing required fields"), { statusCode: 400 });
     }
 
     const videoUrl = `/uploads/${req.file.filename}`;
+    log("Updating database with video URL:", videoUrl);
+
     await storage.updateUserVideoStatus(parseInt(userId), celebrity, videoUrl);
 
     res.json(successResponse({
