@@ -1,8 +1,10 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -37,23 +39,21 @@ app.use((req, res, next) => {
   next();
 });
 
-async function startServer(port: number): Promise<void> {
+async function startServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = registerRoutes(app);
+    const PORT = process.env.PORT || 5000;
 
-    server.listen(port, '0.0.0.0')
+    log(`Starting server on port ${PORT}...`);
+
+    server.listen(PORT, '0.0.0.0')
       .once('listening', () => {
-        log(`Server successfully started and listening on port ${port}`);
+        log(`Server successfully started and listening on port ${PORT}`);
         resolve();
       })
       .once('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          log(`Port ${port} is in use, will try alternate port`);
-          reject(err);
-        } else {
-          log(`Failed to start server: ${err.message}`);
-          reject(err);
-        }
+        log(`Failed to start server: ${err.message}`);
+        reject(err);
       });
   });
 }
@@ -69,34 +69,16 @@ async function startServer(port: number): Promise<void> {
 
   if (app.get("env") === "development") {
     log("Setting up Vite middleware for development");
-    await setupVite(app, registerRoutes(app)); //Corrected this line.  registerRoutes(app) returns the server object.
+    await setupVite(app, registerRoutes(app));
   } else {
     log("Setting up static file serving for production");
     serveStatic(app);
   }
 
-  // Try port 5000 first, then fallback to 3000
-  const PRIMARY_PORT = 5000;
-  const FALLBACK_PORT = 3000;
-  const ENV_PORT = process.env.PORT ? parseInt(process.env.PORT) : PRIMARY_PORT;
-
-  log(`Environment PORT value: ${process.env.PORT}`);
-  log(`Attempting to start server with configured port: ${ENV_PORT}`);
-
   try {
-    await startServer(ENV_PORT);
+    await startServer();
   } catch (error) {
-    if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-      log(`Attempting to start with fallback port: ${FALLBACK_PORT}`);
-      try {
-        await startServer(FALLBACK_PORT);
-      } catch (fallbackError) {
-        log(`Failed to start server on fallback port: ${fallbackError}`);
-        process.exit(1);
-      }
-    } else {
-      log(`Failed to start server: ${error}`);
-      process.exit(1);
-    }
+    log(`Critical error starting server: ${error}`);
+    process.exit(1);
   }
 })();

@@ -55,6 +55,8 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
       if (!selectedGrade) return [];
       const response = await fetch(`/api/users/grade/${selectedGrade}`);
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to fetch users:", errorData);
         throw new Error('Failed to fetch users');
       }
       const data = await response.json();
@@ -91,17 +93,16 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     form.setValue('grade', value);
     form.setValue('name', ''); // Reset name when grade changes
     setSelectedUser(null); // Reset selected user when grade changes
-
-    // Invalidate and refetch users for the new grade
-    queryClient.invalidateQueries({ 
-      queryKey: ["/api/users/grade", value],
-      exact: true 
-    });
   };
 
   const personalizedPledgeText = pledge?.pledgeText
     ? `I, ${selectedUser?.name}, pledge to, ${pledge.pledgeText}\n\nI nominate ${selectedUser?.favoriteCelebrity} to take this pledge with me.`
     : "";
+
+  // Filter users based on selected grade for display only
+  const filteredUsers = selectedGrade
+    ? users.filter((user: any) => user.grade.toLowerCase() === selectedGrade.toLowerCase())
+    : users;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,10 +143,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={field.onChange}
                       value={field.value}
-                      disabled={!selectedGrade || isLoadingUsers}
+                      disabled={isLoadingUsers}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -160,7 +161,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {users.map((user: any) => (
+                        {filteredUsers.map((user: any) => (
                           <SelectItem key={user.id} value={user.name}>
                             {user.name}
                           </SelectItem>
@@ -184,8 +185,8 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                 )}
               />
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={isLoadingUsers || isLoadingPledge}
               >
@@ -208,9 +209,9 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               setSelectedGrade("");
               setSelectedUser(null);
               // Invalidate the users query to refresh the list
-              queryClient.invalidateQueries({ 
+              queryClient.invalidateQueries({
                 queryKey: ["/api/users/grade", selectedGrade],
-                exact: true 
+                exact: true
               });
             }}
             userData={selectedUser}
