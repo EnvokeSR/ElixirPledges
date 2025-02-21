@@ -97,22 +97,16 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/users/grade/:grade", asyncHandler(async (req, res) => {
     const grade = req.params.grade.toLowerCase();
     const users = await storage.getUsersByGradeNotSubmitted(grade);
-    const response = successResponse(users);
-    log(`Response for /api/users/grade/${grade}:`, JSON.stringify(response));
-    res.json(response);
+    res.json(successResponse(users));
   }));
 
   app.get("/api/pledges/:code", asyncHandler(async (req, res) => {
     const pledge = await storage.getPledgeByCode(req.params.code);
     if (!pledge) {
-      const errorResp = errorResponse("Pledge not found", 404);
-      log(`Error response for /api/pledges/${req.params.code}:`, JSON.stringify(errorResp));
-      res.status(404).json(errorResp);
+      res.status(404).json(errorResponse("Pledge not found", 404));
       return;
     }
-    const response = successResponse(pledge);
-    log(`Response for /api/pledges/${req.params.code}:`, JSON.stringify(response));
-    res.json(response);
+    res.json(successResponse(pledge));
   }));
 
   app.post("/api/videos", upload.single("video"), asyncHandler(async (req, res) => {

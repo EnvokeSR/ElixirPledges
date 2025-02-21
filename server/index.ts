@@ -3,6 +3,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { testConnection } from "./db";
+import path from "path";
 
 // Add environment validation at startup
 function validateEnvironment() {
@@ -68,9 +69,23 @@ async function startServer(): Promise<void> {
     await testConnection();
     log("Database connection verified");
 
-    // For debugging, temporarily use static serving even in development
-    log("Setting up static file serving for debugging");
-    serveStatic(app);
+    if (process.env.NODE_ENV === 'development') {
+      // In development, use Vite's dev server
+      await setupVite(app, server);
+    } else {
+      // In production, serve from the dist/public directory
+      const distPath = path.resolve(process.cwd(), "dist", "public");
+      app.use(express.static(distPath));
+
+      // Serve index.html for client-side routing
+      app.get('*', (req, res) => {
+        // Don't serve index.html for API routes
+        if (req.path.startsWith('/api')) {
+          return next; //Corrected this line to use next function
+        }
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
 
     // Try different ports if the default is in use
     const startPort = parseInt(process.env.PORT || "5000");
