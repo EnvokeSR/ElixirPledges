@@ -49,11 +49,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/users/grade", selectedGrade],
+    queryKey: ["/api/users/notsubmitted"],
     queryFn: async () => {
-      console.log("Fetching users for grade:", selectedGrade);
-      if (!selectedGrade) return [];
-      const response = await fetch(`/api/users/grade/${selectedGrade}`);
+      console.log("Fetching all unsubmitted users");
+      const response = await fetch(`/api/users/notsubmitted`);
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
@@ -61,7 +60,6 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
       console.log("Fetched users:", data);
       return data;
     },
-    enabled: !!selectedGrade,
   });
 
   const { data: pledge, isLoading: isLoadingPledge } = useQuery({
@@ -89,14 +87,6 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
     console.log("Grade changed to:", value);
     setSelectedGrade(value);
     form.setValue('grade', value);
-    form.setValue('name', ''); // Reset name when grade changes
-    setSelectedUser(null); // Reset selected user when grade changes
-
-    // Invalidate and refetch users for the new grade
-    queryClient.invalidateQueries({ 
-      queryKey: ["/api/users/grade", value],
-      exact: true 
-    });
   };
 
   const personalizedPledgeText = pledge?.pledgeText
@@ -145,7 +135,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
                     <Select 
                       onValueChange={field.onChange} 
                       value={field.value}
-                      disabled={!selectedGrade || isLoadingUsers}
+                      disabled={isLoadingUsers}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -209,7 +199,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               setSelectedUser(null);
               // Invalidate the users query to refresh the list
               queryClient.invalidateQueries({ 
-                queryKey: ["/api/users/grade", selectedGrade],
+                queryKey: ["/api/users/notsubmitted"],
                 exact: true 
               });
             }}
