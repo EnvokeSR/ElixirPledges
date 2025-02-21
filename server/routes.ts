@@ -59,12 +59,10 @@ export function registerRoutes(app: Express): Server {
   // Parse URL-encoded bodies (as sent by HTML forms)
   app.use(express.urlencoded({ extended: true }));
 
-  app.get("/api/users/grade/:grade", async (req, res) => {
+  app.get("/api/users/not-submitted", async (req, res) => {
     try {
-      const grade = req.params.grade.toLowerCase();
-      console.log(`Received request for users in grade: ${grade}`);
-      const users = await storage.getUsersByGradeNotSubmitted(grade);
-      console.log(`Returning ${users.length} users for grade ${grade}:`, JSON.stringify(users));
+      const users = await storage.getUsersNotSubmitted();
+      console.log(`Returning ${users.length} users:`, JSON.stringify(users));
       res.setHeader('Content-Type', 'application/json');
       res.json(users);
     } catch (error) {

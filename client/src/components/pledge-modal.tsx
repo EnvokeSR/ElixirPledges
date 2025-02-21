@@ -36,24 +36,20 @@ interface FormData {
 export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [step, setStep] = useState(1);
-  const [selectedGrade, setSelectedGrade] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     defaultValues: {
-      grade: "",
       name: "",
       celebrity: "",
     },
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/users/grade", selectedGrade],
+    queryKey: ["/api/users/not-submitted"],
     queryFn: async () => {
-      console.log("Fetching users for grade:", selectedGrade);
-      if (!selectedGrade) return [];
-      const response = await fetch(`/api/users/grade/${selectedGrade}`);
+      const response = await fetch('/api/users/not-submitted');
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
@@ -112,29 +108,7 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
         {step === 1 ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="grade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Grade</FormLabel>
-                    <Select
-                      onValueChange={handleGradeChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your grade" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="8th">8th</SelectItem>
-                        <SelectItem value="7th">7th</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
+              
 
               <FormField
                 control={form.control}
@@ -205,11 +179,10 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
               onOpenChange(false);
               setStep(1);
               form.reset();
-              setSelectedGrade("");
               setSelectedUser(null);
               // Invalidate the users query to refresh the list
               queryClient.invalidateQueries({ 
-                queryKey: ["/api/users/grade", selectedGrade],
+                queryKey: ["/api/users/not-submitted"],
                 exact: true 
               });
             }}
