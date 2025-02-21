@@ -14,17 +14,26 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    try {
+      return await db.select().from(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      throw error;
+    }
   }
 
   async getUsersByGrade(grade: string): Promise<User[]> {
-    return await db.select()
-      .from(users)
-      .where(eq(users.grade, grade));
+    try {
+      return await db.select()
+        .from(users)
+        .where(eq(users.grade, grade));
+    } catch (error) {
+      console.error("Error fetching users by grade:", error);
+      throw error;
+    }
   }
 
   async getAllUsersNotSubmitted(): Promise<User[]> {
-    console.log('Fetching all users with videoSubmitted=false');
     try {
       const result = await db.select()
         .from(users)
@@ -40,7 +49,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByGradeNotSubmitted(grade: string): Promise<User[]> {
-    console.log(`Fetching users for grade ${grade} with videoSubmitted=false`);
     try {
       const result = await db.select()
         .from(users)
@@ -61,7 +69,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserVideoStatus(id: number, favoriteCelebrity: string, url: string): Promise<User> {
-    console.log(`Updating user ${id} with celebrity ${favoriteCelebrity} and URL ${url}`);
     try {
       const [updatedUser] = await db.update(users)
         .set({ 
@@ -84,14 +91,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPledges(): Promise<Pledge[]> {
-    return await db.select().from(pledges);
+    try {
+      return await db.select().from(pledges);
+    } catch (error) {
+      console.error("Error fetching pledges:", error);
+      throw error;
+    }
   }
 
   async getPledgeByCode(code: string): Promise<Pledge | undefined> {
-    const [pledge] = await db.select()
-      .from(pledges)
-      .where(eq(pledges.pledgeCode, code));
-    return pledge;
+    try {
+      const [pledge] = await db.select()
+        .from(pledges)
+        .where(eq(pledges.pledgeCode, code));
+      return pledge;
+    } catch (error) {
+      console.error("Error fetching pledge by code:", error);
+      throw error;
+    }
   }
 }
 

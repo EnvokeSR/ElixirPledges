@@ -18,9 +18,11 @@ export const users = pgTable("users", {
   url: text("url"),
 });
 
-export const insertPledgeSchema = createInsertSchema(pledges);
-export const insertUserSchema = createInsertSchema(users);
+// Create insert schemas
+export const insertPledgeSchema = createInsertSchema(pledges).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
+// Export types
 export type InsertPledge = z.infer<typeof insertPledgeSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Pledge = typeof pledges.$inferSelect;
