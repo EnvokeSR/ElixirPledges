@@ -47,12 +47,21 @@ export default function PledgeModal({ open, onOpenChange }: PledgeModalProps) {
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/users/not-submitted"],
+    queryKey: ["users-not-submitted"],
     queryFn: async () => {
-      const response = await fetch('/api/users/not-submitted');
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
+      try {
+        const response = await fetch('/api/users/not-submitted');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        const data = await response.json();
+        console.log("Fetched users:", data);
+        return data;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        throw error;
       }
+    }
       const data = await response.json();
       console.log("Fetched users:", data);
       return data;
