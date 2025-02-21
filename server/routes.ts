@@ -64,11 +64,15 @@ export function registerRoutes(app: Express): Server {
       const grade = req.params.grade.toLowerCase();
       console.log(`Received request for users in grade: ${grade}`);
       const users = await storage.getUsersByGradeNotSubmitted(grade);
-      console.log(`Returning ${users.length} users for grade ${grade}`);
+      console.log(`Returning ${users.length} users for grade ${grade}:`, JSON.stringify(users));
+      res.setHeader('Content-Type', 'application/json');
       res.json(users);
     } catch (error) {
       console.error("Error fetching users by grade:", error);
-      res.status(500).json({ message: "Failed to fetch users" });
+      res.status(500).json({ 
+        message: "Failed to fetch users",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

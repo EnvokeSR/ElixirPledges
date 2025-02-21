@@ -41,7 +41,7 @@ async function startServer(port: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = registerRoutes(app);
 
-    server.listen(port)
+    server.listen(port, '0.0.0.0')
       .once('listening', () => {
         log(`Server successfully started and listening on port ${port}`);
         resolve();
