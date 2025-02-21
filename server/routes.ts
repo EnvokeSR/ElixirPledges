@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
+import { log } from "./vite";
 
 // Create uploads directory if it doesn't exist
 fs.mkdir("./uploads", { recursive: true }).catch(error => {
@@ -17,7 +18,7 @@ const upload = multer({
     },
     filename: (req, file, cb) => {
       try {
-        console.log("File upload request received:", {
+        log("File upload request received:", {
           body: req.body,
           file: file
         });
@@ -28,16 +29,15 @@ const upload = multer({
           return cb(new Error(`Missing required fields. Got name: ${name}, grade: ${grade}, celebrity: ${celebrity}`), '');
         }
 
-        // Sanitize the filename components
         const sanitizedName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedGrade = grade.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const sanitizedCelebrity = celebrity.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
         const filename = `${sanitizedName}_${sanitizedGrade}_${sanitizedCelebrity}.webm`;
-        console.log("Generated filename:", filename);
+        log("Generated filename:", filename);
         cb(null, filename);
       } catch (error) {
-        console.error("Error in filename generation:", error);
+        log("Error in filename generation:", error);
         cb(error as Error, '');
       }
     }
@@ -46,7 +46,7 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
-    console.log("Received file:", file.originalname, "mimetype:", file.mimetype);
+    log("Received file:", file.originalname, "mimetype:", file.mimetype);
     if (!file.mimetype.startsWith('video/')) {
       cb(new Error('Only video files are allowed'));
       return;
@@ -56,18 +56,23 @@ const upload = multer({
 });
 
 export function registerRoutes(app: Express): Server {
-  // Parse URL-encoded bodies (as sent by HTML forms)
   app.use(express.urlencoded({ extended: true }));
+
+  // Debug endpoint to check if API is accessible
+  app.get("/api/health", (_req, res) => {
+    log("Health check endpoint called");
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
 
   app.get("/api/users", async (req, res) => {
     try {
-      console.log('Received request for all users');
+      log('Received request for all users');
       const users = await storage.getAllUsersNotSubmitted();
-      console.log(`Returning ${users.length} users:`, JSON.stringify(users));
+      log(`Returning ${users.length} users:`, JSON.stringify(users));
       res.setHeader('Content-Type', 'application/json');
       res.json(users);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      log("Error fetching users:", error);
       res.status(500).json({ 
         message: "Failed to fetch users",
         error: error instanceof Error ? error.message : String(error)
@@ -78,15 +83,18 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/users/grade/:grade", async (req, res) => {
     try {
       const grade = req.params.grade.toLowerCase();
-      console.log(`Received request for users in grade: ${grade}`);
+      log(`Received request for users in grade: ${grade}`);
+      log(`Client IP: ${req.ip}, Headers:`, req.headers);
+
       const users = await storage.getUsersByGradeNotSubmitted(grade);
-      console.log(`Returning ${users.length} users for grade ${grade}:`, JSON.stringify(users));
+      log(`Found ${users.length} users for grade ${grade}`);
+
       res.setHeader('Content-Type', 'application/json');
       res.json(users);
     } catch (error) {
-      console.error("Error fetching users by grade:", error);
+      log("Error fetching users by grade:", error);
       res.status(500).json({ 
-        message: "Failed to fetch users",
+        message: "Failed to fetch users by grade",
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -98,20 +106,20 @@ export function registerRoutes(app: Express): Server {
       if (!pledge) return res.status(404).json({ message: "Pledge not found" });
       res.json(pledge);
     } catch (error) {
-      console.error("Error fetching pledge:", error);
+      log("Error fetching pledge:", error);
       res.status(500).json({ message: "Failed to fetch pledge" });
     }
   });
 
   app.post("/api/videos", upload.single("video"), async (req, res) => {
     try {
-      console.log("Video upload request received", {
+      log("Video upload request received", {
         body: req.body,
         file: req.file
       });
 
       if (!req.file) {
-        console.error("No file received in request");
+        log("No file received in request");
         return res.status(400).json({ message: "No video file uploaded" });
       }
 
@@ -123,7 +131,7 @@ export function registerRoutes(app: Express): Server {
         });
       }
 
-      console.log("Updating user status", { userId, celebrity });
+      log("Updating user status", { userId, celebrity });
 
       const videoUrl = `/uploads/${req.file.filename}`;
       await storage.updateUserVideoStatus(parseInt(userId), celebrity, videoUrl);
@@ -134,7 +142,7 @@ export function registerRoutes(app: Express): Server {
         url: videoUrl
       });
     } catch (error) {
-      console.error("Video upload error:", error);
+      log("Video upload error:", error);
       res.status(500).json({ 
         message: "Failed to upload video",
         error: error instanceof Error ? error.message : "Unknown error"
